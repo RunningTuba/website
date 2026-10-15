@@ -53,29 +53,50 @@ Resend call.
 ### Resend setup
 
 > **Current status: the form delivers, but through a temporary sender.**
-> `runningtuba.com` is not verified in Resend, so sends from
-> `website@runningtuba.com` are rejected with a **403**. The service is
-> therefore configured with `CONTACT_FROM_EMAIL=onboarding@resend.dev`, Resend's
-> shared testing sender, which does deliver today — but *only* to the Resend
-> account owner (`andy@runningtuba.com`). It will silently stop working for any
-> other recipient, and it is not an appropriate permanent sender.
+> `send.runningtuba.com` is not verified in Resend yet — only its DKIM record is
+> published, and Resend requires all three records before it will verify a
+> domain. Sends from `website@send.runningtuba.com` are therefore rejected with a
+> **403**. The service is configured with `CONTACT_FROM_EMAIL=onboarding@resend.dev`,
+> Resend's shared testing sender, which does deliver today — but *only* to the
+> Resend account owner (`andy@runningtuba.com`). It will silently stop working for
+> any other recipient, and it is not an appropriate permanent sender.
 
 To finish the setup:
 
-1. Verify `runningtuba.com` under **Domains** at https://resend.com/domains and
-   add the DNS records Resend gives you (SPF/DKIM, plus DMARC for deliverability).
-2. Once it shows **Verified**, switch the sender back:
+1. Add the **two missing DNS records** for `send.runningtuba.com` (see below).
+2. Wait for **Verified** at https://resend.com/domains.
+3. Switch the sender:
 
    ```bash
-   railway variable set "CONTACT_FROM_EMAIL=Running Tuba Website <website@runningtuba.com>" \
+   railway variable set "CONTACT_FROM_EMAIL=Running Tuba Website <website@send.runningtuba.com>" \
      --service website \
      --project fa376087-2329-4424-b595-286abc8531d1 \
      --environment 6ed7b8aa-a247-4c88-ae48-840b022caa3e
    ```
 
-3. Update `.env` to match. You can then also uppercase `CONTACT_TO_EMAIL` if you
+4. Update `.env` to match. You can then also uppercase `CONTACT_TO_EMAIL` if you
    prefer — the lowercase requirement only applies to the `onboarding@resend.dev`
    sender, which compares the recipient address case-sensitively.
+
+#### DNS records for send.runningtuba.com
+
+The domain's nameservers are GoDaddy (`domaincontrol.com`), so these go in
+GoDaddy DNS. Host values are relative — GoDaddy appends the domain.
+
+| Type | Host | Value | Status |
+| --- | --- | --- | --- |
+| TXT | `resend._domainkey.send` | `p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQ…` | **done** |
+| MX | `send` | `feedback-smtp.<region>.amazonses.com` (priority 10) | **missing** |
+| TXT | `send` | `v=spf1 include:amazonses.com ~all` | **missing** |
+
+Copy the MX value from the Resend dashboard — the region differs per account
+(`us-east-1` is Resend's default). Check state at any time with:
+
+```bash
+dig +short MX send.runningtuba.com
+dig +short TXT send.runningtuba.com
+dig +short TXT resend._domainkey.send.runningtuba.com
+```
 
 The current API key is **send-only** (restricted), which is deliberate: it cannot
 read the domain list or manage the account. Use an unrestricted key in the Resend
