@@ -25,8 +25,8 @@ the real key.
 | Variable | Required | Default | Notes |
 | --- | --- | --- | --- |
 | `RESEND_API_KEY` | yes | — | From https://resend.com/api-keys, starts with `re_`. |
-| `CONTACT_TO_EMAIL` | no | `Andy@runningtuba.com` | Destination inbox. Comma-separate for several. |
-| `CONTACT_FROM_EMAIL` | no | `Running Tuba Website <website@runningtuba.com>` | Domain must be verified in Resend. |
+| `CONTACT_TO_EMAIL` | no | `andy@runningtuba.com` | Destination inbox. Comma-separate for several. |
+| `CONTACT_FROM_EMAIL` | no | `Running Tuba Website <website@runningtuba.com>` | Domain must be verified in Resend. See below. |
 | `PORT` | no | `8080` | Injected by Railway. |
 | `RESEND_ENDPOINT` | no | `https://api.resend.com/emails` | Override for testing. |
 
@@ -52,13 +52,34 @@ Resend call.
 
 ### Resend setup
 
-1. Create an API key at https://resend.com/api-keys and paste it into `.env`.
-2. Verify `runningtuba.com` under **Domains** in Resend and add the DNS records
-   it gives you. Until the domain is verified, Resend rejects sends from
-   `website@runningtuba.com` with a 403.
-   - To smoke-test before verification, set `CONTACT_FROM_EMAIL` to
-     `Running Tuba Website <onboarding@resend.dev>`. That only delivers to the
-     address that owns the Resend account.
+> **Current status: the form delivers, but through a temporary sender.**
+> `runningtuba.com` is not verified in Resend, so sends from
+> `website@runningtuba.com` are rejected with a **403**. The service is
+> therefore configured with `CONTACT_FROM_EMAIL=onboarding@resend.dev`, Resend's
+> shared testing sender, which does deliver today — but *only* to the Resend
+> account owner (`andy@runningtuba.com`). It will silently stop working for any
+> other recipient, and it is not an appropriate permanent sender.
+
+To finish the setup:
+
+1. Verify `runningtuba.com` under **Domains** at https://resend.com/domains and
+   add the DNS records Resend gives you (SPF/DKIM, plus DMARC for deliverability).
+2. Once it shows **Verified**, switch the sender back:
+
+   ```bash
+   railway variable set "CONTACT_FROM_EMAIL=Running Tuba Website <website@runningtuba.com>" \
+     --service website \
+     --project fa376087-2329-4424-b595-286abc8531d1 \
+     --environment 6ed7b8aa-a247-4c88-ae48-840b022caa3e
+   ```
+
+3. Update `.env` to match. You can then also uppercase `CONTACT_TO_EMAIL` if you
+   prefer — the lowercase requirement only applies to the `onboarding@resend.dev`
+   sender, which compares the recipient address case-sensitively.
+
+The current API key is **send-only** (restricted), which is deliberate: it cannot
+read the domain list or manage the account. Use an unrestricted key in the Resend
+dashboard if you need to query the API by hand.
 
 ## Deploying
 

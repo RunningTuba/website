@@ -10,7 +10,7 @@
  * Configuration is entirely environment-driven (see .env.example):
  *   PORT                 listening port (Railway injects this)
  *   RESEND_API_KEY       Resend API key — REQUIRED for the form to deliver
- *   CONTACT_TO_EMAIL     destination inbox (default Andy@runningtuba.com)
+ *   CONTACT_TO_EMAIL     destination inbox (default andy@runningtuba.com)
  *   CONTACT_FROM_EMAIL   verified Resend sender (default website@runningtuba.com)
  */
 
@@ -24,7 +24,7 @@ const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
 const RESEND_API_KEY = (process.env.RESEND_API_KEY || '').trim();
 const RESEND_ENDPOINT = process.env.RESEND_ENDPOINT || 'https://api.resend.com/emails';
-const CONTACT_TO_EMAIL = process.env.CONTACT_TO_EMAIL || 'Andy@runningtuba.com';
+const CONTACT_TO_EMAIL = process.env.CONTACT_TO_EMAIL || 'andy@runningtuba.com';
 const CONTACT_FROM_EMAIL =
   process.env.CONTACT_FROM_EMAIL || 'Running Tuba Website <website@runningtuba.com>';
 
