@@ -7,3 +7,6 @@ Dockerfile
 railway.json
 README.md
 node_modules
+.env
+.env.*
+!.env.example
