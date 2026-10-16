@@ -52,45 +52,30 @@ Resend call.
 
 ### Resend setup
 
-> **Current status: the form delivers, but through a temporary sender.**
-> `send.runningtuba.com` is not verified in Resend yet — only its DKIM record is
-> published, and Resend requires all three records before it will verify a
-> domain. Sends from `website@send.runningtuba.com` are therefore rejected with a
-> **403**. The service is configured with `CONTACT_FROM_EMAIL=onboarding@resend.dev`,
-> Resend's shared testing sender, which does deliver today — but *only* to the
-> Resend account owner (`andy@runningtuba.com`). It will silently stop working for
-> any other recipient, and it is not an appropriate permanent sender.
+Sending is live from the verified subdomain **`send.runningtuba.com`**, so briefs
+arrive from `Running Tuba Website <website@send.runningtuba.com>` with `reply_to`
+set to the submitter.
 
-To finish the setup:
-
-1. Add the **two missing DNS records** for `send.runningtuba.com` (see below).
-2. Wait for **Verified** at https://resend.com/domains.
-3. Switch the sender:
-
-   ```bash
-   railway variable set "CONTACT_FROM_EMAIL=Running Tuba Website <website@send.runningtuba.com>" \
-     --service website \
-     --project fa376087-2329-4424-b595-286abc8531d1 \
-     --environment 6ed7b8aa-a247-4c88-ae48-840b022caa3e
-   ```
-
-4. Update `.env` to match. You can then also uppercase `CONTACT_TO_EMAIL` if you
-   prefer — the lowercase requirement only applies to the `onboarding@resend.dev`
-   sender, which compares the recipient address case-sensitively.
-
-#### DNS records for send.runningtuba.com
-
-The domain's nameservers are GoDaddy (`domaincontrol.com`), so these go in
-GoDaddy DNS. Host values are relative — GoDaddy appends the domain.
+Resend verified the domain on its **DKIM** record alone. Two of the three records
+Resend asks for are still unpublished:
 
 | Type | Host | Value | Status |
 | --- | --- | --- | --- |
-| TXT | `resend._domainkey.send` | `p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQ…` | **done** |
-| MX | `send` | `feedback-smtp.<region>.amazonses.com` (priority 10) | **missing** |
-| TXT | `send` | `v=spf1 include:amazonses.com ~all` | **missing** |
+| TXT | `resend._domainkey.send` | `p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQ…` | published |
+| MX | `send` | `feedback-smtp.<region>.amazonses.com` (priority 10) | **not published** |
+| TXT | `send` | `v=spf1 include:amazonses.com ~all` | **not published** |
 
-Copy the MX value from the Resend dashboard — the region differs per account
-(`us-east-1` is Resend's default). Check state at any time with:
+Delivery works without them — DKIM is what authenticates the mail. Publishing the
+MX record lets Resend receive bounce and complaint notifications, and the SPF
+record improves alignment for receivers that weigh it. Worth adding, but not
+blocking.
+
+There is also a stray `send.send.runningtuba.com` CNAME pointing at
+`send.forge.rmta.net`, an unrelated sending setup. It does nothing for this site
+and looks like a duplicate created by pasting a full hostname into GoDaddy's
+relative Name field. Safe to delete once you've confirmed nothing else uses it.
+
+Check DNS state at any time with:
 
 ```bash
 dig +short MX send.runningtuba.com
@@ -98,9 +83,9 @@ dig +short TXT send.runningtuba.com
 dig +short TXT resend._domainkey.send.runningtuba.com
 ```
 
-The current API key is **send-only** (restricted), which is deliberate: it cannot
-read the domain list or manage the account. Use an unrestricted key in the Resend
-dashboard if you need to query the API by hand.
+The API key in use is **send-only** (restricted): it can send mail but cannot read
+the domain list or manage the account. That is deliberate least-privilege — use an
+unrestricted key in the Resend dashboard if you need to query the API by hand.
 
 ## Deploying
 
@@ -109,12 +94,23 @@ Railway builds the `Dockerfile` and health-checks `/health`.
 ```bash
 # one-time: push the local .env value up as a Railway secret
 railway variable set RESEND_API_KEY --stdin --service website   # then paste & Ctrl-D
-railway variable set CONTACT_TO_EMAIL=Andy@runningtuba.com --service website
-railway variable set "CONTACT_FROM_EMAIL=Running Tuba Website <website@runningtuba.com>" --service website
+railway variable set CONTACT_TO_EMAIL=andy@runningtuba.com --service website
+railway variable set "CONTACT_FROM_EMAIL=Running Tuba Website <website@send.runningtuba.com>" --service website
 ```
 
-The service is connected to this GitHub repo, so **pushing to `main` deploys
-automatically**.
+> **Auto-deploy on push is not currently active.** The service is linked to
+> `RunningTuba/website`, but Railway's GitHub App has not been granted access to
+> that repository (it covers `RunningTuba/bassline`, which predates it), so pushes
+> to `main` do not trigger a build. Add the repo at
+> **github.com/settings/installations → Railway → Configure → Repository access**.
+>
+> Until then, deploy by triggering a build against a commit:
+>
+> ```bash
+> SHA=$(git rev-parse HEAD)
+> railway api 'mutation($s:String!,$e:String!,$c:String!){serviceInstanceDeployV2(serviceId:$s,environmentId:$e,commitSha:$c)}' \
+>   --variables "{\"s\":\"2631d20e-9528-41fe-b54d-9a25ebe70058\",\"e\":\"6ed7b8aa-a247-4c88-ae48-840b022caa3e\",\"c\":\"$SHA\"}"
+> ```
 
 ## Layout
 
